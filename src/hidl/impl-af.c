@@ -29,7 +29,7 @@
 
 #define BINDER_DEVICE               GBINDER_DEFAULT_BINDER
 #define SERVICE_NAME                "media.audio_flinger"
-#define SERVICE_IFACE               SERVICE_NAME "@1.0"
+#define SERVICE_IFACE               "android.media.IAudioFlinger"
 
 
 enum af_methods {
@@ -67,7 +67,15 @@ static GBinderLocalReply *app_reply(GBinderLocalObject* obj,
                                     void* user_data)
 {
     AfApp* app = user_data;
+    const char* iface;
     GBinderLocalReply* reply = NULL;
+
+    iface = gbinder_remote_request_interface(req);
+    if (g_strcmp0(iface, SERVICE_IFACE)) {
+        ERR("Unexpected interface \"%s\"", iface);
+        *status = -1;
+        return NULL;
+    }
 
     if (code == binder_idx(app, AF_SET_PARAMETERS)) {
         GBinderReader reader;
