@@ -59,12 +59,14 @@ binder_idx(
     return app->config->binder_index + idx;
 }
 
-static GBinderLocalReply *app_reply(GBinderLocalObject* obj,
-                                    GBinderRemoteRequest* req,
-                                    guint code,
-                                    guint flags,
-                                    int* status,
-                                    void* user_data)
+static GBinderLocalReply*
+app_reply(
+        GBinderLocalObject* obj,
+        GBinderRemoteRequest* req,
+        guint code,
+        guint flags,
+        int* status,
+        void* user_data)
 {
     AfApp* app = user_data;
     const char* iface;
@@ -114,8 +116,8 @@ static GBinderLocalReply *app_reply(GBinderLocalObject* obj,
         g_free(key_value_pairs);
         *status = 0;
     } else if (code == binder_idx(app, AF_REGISTER_CLIENT)) {
-            DBG("register client");
-            *status = 0;
+        DBG("register client");
+        *status = 0;
     } else {
         ERR("Unknown code (%u)", code);
         *status = 0;
@@ -124,9 +126,11 @@ static GBinderLocalReply *app_reply(GBinderLocalObject* obj,
     return reply;
 }
 
-static void app_add_service_done(GBinderServiceManager* sm,
-                                 int status,
-                                 void *user_data)
+static void
+app_add_service_done(
+        GBinderServiceManager* sm,
+        int status,
+        void *user_data)
 {
     AfApp *app = user_data;
 
@@ -138,8 +142,10 @@ static void app_add_service_done(GBinderServiceManager* sm,
     }
 }
 
-static void sm_presence_handler(GBinderServiceManager* sm,
-                                void* user_data)
+static void
+sm_presence_handler(
+        GBinderServiceManager* sm,
+        void* user_data)
 {
     AfApp* app = user_data;
 
