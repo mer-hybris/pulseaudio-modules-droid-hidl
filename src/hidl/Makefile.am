@@ -25,6 +25,6 @@ pulselibexecdir=$(libexecdir)/pulse
 
 pulselibexec_PROGRAMS = hidl-helper
 
-hidl_helper_SOURCES = hidl-helper.c
+hidl_helper_SOURCES = hidl-helper.c dbus-comms.c impl-af.c impl-hidl.c
 hidl_helper_LDADD = $(LIBGBINDER_LIBS) $(GLIB_LIBS) $(GIO_LIBS)
-hidl_helper_CFLAGS = $(LIBGBINDER_CFLAGS) $(GLIB_CFLAGS) $(GIO_CFLAGS)
+hidl_helper_CFLAGS = $(DROIDHEADERS_CFLAGS) $(LIBGBINDER_CFLAGS) $(GLIB_CFLAGS) $(GIO_CFLAGS)
