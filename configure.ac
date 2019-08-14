@@ -201,15 +201,6 @@ AS_IF([test "x$modlibexecdir" = "x"],
 
 AC_SUBST(modlibexecdir)
 
-AC_ARG_WITH([helper-dir],
-        AS_HELP_STRING([--with-helper-dir], [Directory where to install the helper binary (defaults to ${libexecdir}/pulse).]),
-        [helperdir=$withval], [helperdir="${libexecdir}/pulse"]
-)
-AC_SUBST(helperdir)
-
-HELPER_LOCATION_CFLAGS="-DHIDL_HELPER_LOCATION=\"\\\"${helperdir}\\\"\""
-AC_SUBST([HELPER_LOCATION_CFLAGS])
-
 AC_MSG_CHECKING([If we are using hardfp tool chain])
 case `echo | gcc -v -xc -o - - 2>&1 | grep COLLECT_GCC_OPTIONS | tail -1` in
      *float-abi=hard*) hardfp=yes; AC_MSG_RESULT([yes]) ;;
@@ -239,5 +230,4 @@ echo "
 
     prefix:                 ${prefix}
     modules directory:      ${modlibexecdir}
-    helper directory:       ${helperdir}
     "
