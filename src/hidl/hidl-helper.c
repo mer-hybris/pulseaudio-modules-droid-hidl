@@ -40,6 +40,12 @@
 #define DEFAULT_BIND_IDX    (18)
 #endif
 
+#if ANDROID_VERSION_MAJOR == 8
+#define TYPE_FROM_RUNTIME
+#define VENDOR_MANIFEST     "/vendor/manifest.xml"
+#define VENDOR_IF_NAME      "IQcRilAudio"
+#endif
+
 #include "common.h"
 #include "impl.h"
 #include "logging.h"
@@ -58,6 +64,29 @@ struct app {
     gint type;
     AppConfig config;
 };
+
+#ifdef TYPE_FROM_RUNTIME
+static const gchar* get_type_from_runtime(const gchar* def)
+{
+    GError *error = NULL;
+    gchar *contents = NULL;
+
+    if (g_file_get_contents(VENDOR_MANIFEST, &contents, NULL, &error) == FALSE) {
+        ERR("can't get %s contents: %s", VENDOR_MANIFEST, error->message);
+        g_error_free(error);
+        return def;
+    }
+
+    /* Use hidl type in case if we find the hidl-specific interface */
+    if (g_strrstr(contents, VENDOR_IF_NAME) != NULL)
+        def = "hidl";
+    else
+        def = "af";
+
+    g_free(contents);
+    return def;
+}
+#endif
 
 static AppImplementation app_implementations[APP_MAX] = {
     { "hidl",   app_hidl_init,  app_hidl_wait,  app_hidl_done   },
@@ -97,7 +126,11 @@ parse_app_type(
     guint i;
 
     if (!type_str)
+#ifdef TYPE_FROM_RUNTIME
+        type_str = get_type_from_runtime(DEFAULT_TYPE_STR);
+#else
         type_str = DEFAULT_TYPE_STR;
+#endif
 
     for (i = 0; i < sizeof(app_implementations) / sizeof(app_implementations[0]); i++) {
         if (!g_strcmp0(type_str, app_implementations[i].name)) {
