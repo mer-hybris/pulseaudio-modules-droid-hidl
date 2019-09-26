@@ -189,6 +189,10 @@ PKG_CHECK_MODULES([GIO], [gio-2.0 >= 2.56])
 AC_SUBST(GIO_CFLAGS)
 AC_SUBST(GIO_LIBS)
 
+PKG_CHECK_MODULES([PASSTHROUGH_COMMON], [audiosystem-passthrough >= 1.0.0])
+AC_SUBST(PASSTHROUGH_COMMON_CFLAGS)
+AC_SUBST(PASSTHROUGH_COMMON_LIBS)
+
 AC_ARG_WITH(
         [module-dir],
         AS_HELP_STRING([--with-module-dir],[Directory where to install the module to (mandatory).]),
