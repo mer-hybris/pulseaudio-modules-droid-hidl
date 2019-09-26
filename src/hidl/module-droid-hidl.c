@@ -51,11 +51,11 @@
 
 #include <droid/droid-util.h>
 
-#include "common.h"
+#include <audiosystem-passthrough/common.h>
 #include "module-droid-hidl-symdef.h"
 
 PA_MODULE_AUTHOR("Juho Hämäläinen");
-PA_MODULE_DESCRIPTION("Droid HIDL passthrough");
+PA_MODULE_DESCRIPTION("Droid AudioSystem passthrough");
 PA_MODULE_VERSION(PACKAGE_VERSION);
 PA_MODULE_USAGE(
         "module_id=<which droid hw module to load, default primary> "
@@ -70,8 +70,18 @@ static const char* const valid_modargs[] = {
 
 #define DEFAULT_MODULE_ID   "primary"
 
-#define HELPER_BINARY       HIDL_HELPER_LOCATION "/" HELPER_NAME
+#define HELPER_BINARY       PASSTHROUGH_HELPER_DIR "/" PASSTHROUGH_HELPER_EXE
 #define BUFFER_MAX          (512)
+
+#if ANDROID_VERSION_MAJOR <= 7
+#define DEFAULT_BINDER_IDX  "17"
+#elif ANDROID_VERSION_MAJOR <= 8
+#define DEFAULT_BINDER_IDX  "18"
+#else
+#define DEFAULT_BINDER_IDX  "18"
+#endif
+
+#define QTI_INTERFACE_NAME  "IQcRilAudio"
 
 struct userdata {
     pa_core *core;
@@ -94,13 +104,13 @@ static bool log_level_debug(void) {
     return false;
 }
 
-static void hidl_get_parameters(DBusConnection *conn, DBusMessage *msg, void *userdata);
-static void hidl_set_parameters(DBusConnection *conn, DBusMessage *msg, void *userdata);
+static void get_parameters(DBusConnection *conn, DBusMessage *msg, void *userdata);
+static void set_parameters(DBusConnection *conn, DBusMessage *msg, void *userdata);
 
-enum hidl_passthrough_methods {
-    HIDL_PASSTHROUGH_GET_PARAMETERS,
-    HIDL_PASSTHROUGH_SET_PARAMETERS,
-    HIDL_PASSTHROUGH_METHOD_MAX
+enum audiosystem_passthrough_methods {
+    PASSTHROUGH_GET_PARAMETERS,
+    PASSTHROUGH_SET_PARAMETERS,
+    PASSTHROUGH_METHOD_MAX
 };
 
 static pa_dbus_arg_info get_parameters_args[] = {
@@ -111,25 +121,25 @@ static pa_dbus_arg_info set_parameters_args[] = {
     { "key_value_pairs", "s", "in" }
 };
 
-static pa_dbus_method_handler hidl_passthrough_method_handlers[HIDL_PASSTHROUGH_METHOD_MAX] = {
-    [HIDL_PASSTHROUGH_GET_PARAMETERS] = {
-        .method_name = HIDL_PASSTHROUGH_METHOD_GET_PARAMETERS,
+static pa_dbus_method_handler passthrough_method_handlers[PASSTHROUGH_METHOD_MAX] = {
+    [PASSTHROUGH_GET_PARAMETERS] = {
+        .method_name = AUDIOSYSTEM_PASSTHROUGH_GET_PARAMETERS,
         .arguments = get_parameters_args,
         .n_arguments = sizeof(get_parameters_args) / sizeof(get_parameters_args[0]),
-        .receive_cb = hidl_get_parameters
+        .receive_cb = get_parameters
     },
-    [HIDL_PASSTHROUGH_SET_PARAMETERS] = {
-        .method_name = HIDL_PASSTHROUGH_METHOD_SET_PARAMETERS,
+    [PASSTHROUGH_SET_PARAMETERS] = {
+        .method_name = AUDIOSYSTEM_PASSTHROUGH_SET_PARAMETERS,
         .arguments = set_parameters_args,
         .n_arguments = sizeof(set_parameters_args) / sizeof(set_parameters_args[0]),
-        .receive_cb = hidl_set_parameters
+        .receive_cb = set_parameters
     },
 };
 
-static pa_dbus_interface_info hidl_passthrough_info = {
-    .name = HIDL_PASSTHROUGH_IFACE,
-    .method_handlers = hidl_passthrough_method_handlers,
-    .n_method_handlers = HIDL_PASSTHROUGH_METHOD_MAX,
+static pa_dbus_interface_info passthrough_info = {
+    .name = AUDIOSYSTEM_PASSTHROUGH_IFACE,
+    .method_handlers = passthrough_method_handlers,
+    .n_method_handlers = PASSTHROUGH_METHOD_MAX,
     .property_handlers = NULL,
     .n_property_handlers = 0,
     .get_all_properties_cb = NULL,
@@ -143,20 +153,20 @@ static void dbus_init(struct userdata *u) {
 
     u->dbus_protocol = pa_dbus_protocol_get(u->core);
 
-    pa_dbus_protocol_add_interface(u->dbus_protocol, HIDL_PASSTHROUGH_PATH, &hidl_passthrough_info, u);
-    pa_dbus_protocol_register_extension(u->dbus_protocol, HIDL_PASSTHROUGH_IFACE);
+    pa_dbus_protocol_add_interface(u->dbus_protocol, AUDIOSYSTEM_PASSTHROUGH_PATH, &passthrough_info, u);
+    pa_dbus_protocol_register_extension(u->dbus_protocol, AUDIOSYSTEM_PASSTHROUGH_IFACE);
 }
 
 static void dbus_done(struct userdata *u) {
     pa_assert(u);
 
-    pa_dbus_protocol_unregister_extension(u->dbus_protocol, HIDL_PASSTHROUGH_IFACE);
-    pa_dbus_protocol_remove_interface(u->dbus_protocol, HIDL_PASSTHROUGH_PATH, hidl_passthrough_info.name);
+    pa_dbus_protocol_unregister_extension(u->dbus_protocol, AUDIOSYSTEM_PASSTHROUGH_IFACE);
+    pa_dbus_protocol_remove_interface(u->dbus_protocol, AUDIOSYSTEM_PASSTHROUGH_PATH, passthrough_info.name);
     pa_dbus_protocol_unref(u->dbus_protocol);
     u->dbus_protocol = NULL;
 }
 
-static void hidl_get_parameters(DBusConnection *conn, DBusMessage *msg, void *userdata) {
+static void get_parameters(DBusConnection *conn, DBusMessage *msg, void *userdata) {
     struct userdata *u;
     DBusMessage *reply;
     DBusError error;
@@ -193,7 +203,7 @@ static void hidl_get_parameters(DBusConnection *conn, DBusMessage *msg, void *us
     dbus_error_free(&error);
 }
 
-static void hidl_set_parameters(DBusConnection *conn, DBusMessage *msg, void *userdata) {
+static void set_parameters(DBusConnection *conn, DBusMessage *msg, void *userdata) {
     struct userdata *u;
     DBusError error;
     char *key_value_pairs = NULL;
@@ -250,9 +260,9 @@ static void io_event_cb(pa_mainloop_api*a, pa_io_event* e, int fd, pa_io_event_f
         memset(buffer, 0, BUFFER_MAX);
         if ((r = pa_read(u->fd, buffer, BUFFER_MAX, NULL)) > 0) {
             if (log_level_debug())
-                pa_log_debug("[" HELPER_NAME "] %s", buffer);
+                pa_log_debug("[" PASSTHROUGH_HELPER_EXE "] %s", buffer);
             else
-                pa_log("[" HELPER_NAME "] %s", buffer);
+                pa_log("[" PASSTHROUGH_HELPER_EXE "] %s", buffer);
         } else if (r < 0) {
             pa_log("failed read");
             io_free(u);
@@ -266,11 +276,55 @@ static void io_event_cb(pa_mainloop_api*a, pa_io_event* e, int fd, pa_io_event_f
     }
 }
 
+static bool file_exists(const char *path) {
+    return access(path, F_OK) == 0 ? true : false;
+}
+
+static bool string_in_file(const char *path, const char *string) {
+    char line[512];
+    FILE *f = NULL;
+    bool found = false;
+
+    pa_assert(path);
+
+    if (!file_exists(path))
+        goto done;
+
+    if (!(f = pa_fopen_cloexec(path, "r"))) {
+        pa_log_warn("open('%s') failed: %s", path, pa_cstrerror(errno));
+        goto done;
+    }
+
+    while (fgets(line, sizeof(line), f)) {
+        if (strstr(line, string)) {
+            found = true;
+            break;
+        }
+    }
+
+done:
+    if (f)
+        fclose(f);
+
+    return found;
+}
+
+static void helper_setenv(const char *dbus_address, const char *impl_type, const char *idx) {
+    setenv(ENV_AUDIOSYSTEM_PASSTHROUGH_ADDRESS, dbus_address, 1);
+    setenv(ENV_AUDIOSYSTEM_PASSTHROUGH_TYPE, impl_type, 0);
+    setenv(ENV_AUDIOSYSTEM_PASSTHROUGH_IDX, idx, 0);
+}
+
+static void helper_unsetenv(void) {
+    unsetenv(ENV_AUDIOSYSTEM_PASSTHROUGH_ADDRESS);
+    unsetenv(ENV_AUDIOSYSTEM_PASSTHROUGH_TYPE);
+    unsetenv(ENV_AUDIOSYSTEM_PASSTHROUGH_IDX);
+}
+
 int pa__init(pa_module *m) {
     pa_modargs *ma = NULL;
     const char *module_id;
     bool helper = true;
-    char *dbus_address = NULL;
 
     pa_assert(m);
 
@@ -301,15 +355,41 @@ int pa__init(pa_module *m) {
 
     dbus_init(u);
 
-    dbus_address = pa_get_dbus_address_from_server_type(u->core->server_type);
-
     if (helper) {
+        const char *const manifest_locations[] = {
+            "/vendor/etc/vintf/manifest.xml",
+            "/vendor/manifest.xml",
+        };
+        const char *impl_str = NULL;
+        const char *idx_str = NULL;
+        char *dbus_address = NULL;
+        bool qti_found = false;
+        unsigned i;
+
+        for (i = 0; i < PA_ELEMENTSOF(manifest_locations); i++) {
+            if (string_in_file(manifest_locations[i], QTI_INTERFACE_NAME)) {
+                pa_log_debug("Detected " AUDIOSYSTEM_PASSTHROUGH_IMPL_STR_QTI " implementation.");
+                qti_found = true;
+                break;
+            }
+        }
+
+        if (qti_found)
+            impl_str = AUDIOSYSTEM_PASSTHROUGH_IMPL_STR_QTI;
+        else
+            impl_str = AUDIOSYSTEM_PASSTHROUGH_IMPL_STR_AF;
+
+        idx_str = DEFAULT_BINDER_IDX;
+        dbus_address = pa_get_dbus_address_from_server_type(u->core->server_type);
+
+        helper_setenv(dbus_address, impl_str, idx_str);
+        pa_xfree(dbus_address);
+
         if ((u->fd = pa_start_child_for_read(HELPER_BINARY,
-                                             dbus_address, &u->pid)) < 0) {
-            pa_log("Failed to spawn " HELPER_NAME);
+                                             "--module", &u->pid)) < 0) {
+            pa_log("Failed to spawn " PASSTHROUGH_HELPER_EXE);
             goto fail;
         }
-        pa_xfree(dbus_address);
 
         pa_log_info("Helper running with pid %d", u->pid);
 
@@ -318,6 +398,7 @@ int pa__init(pa_module *m) {
                                                 PA_IO_EVENT_INPUT | PA_IO_EVENT_ERROR | PA_IO_EVENT_HANGUP,
                                                 io_event_cb,
                                                 u);
+        helper_unsetenv();
     }
 
     return 0;
@@ -326,7 +407,8 @@ fail:
     if (ma)
         pa_modargs_free(ma);
 
-    pa_xfree(dbus_address);
+    if (helper)
+        helper_unsetenv();
 
     pa__done(m);
 
