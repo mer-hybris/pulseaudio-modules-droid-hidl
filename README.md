@@ -1,6 +1,16 @@
 PulseAudio Droid HIDL module
 ============================
 
+About the name
+--------------
+
+Even though the name has "hidl" in it, this module actually nowadays
+doesn't directly have anything to do with HIDL or Binder for that
+matter. All the Binder related implementation is in
+audiosystem-passthrough. This module merely provides access
+to HAL `set_parameters()` and `get_parameters()` calls from
+outside PulseAudio.
+
 module-droid-hidl
 -----------------
 
