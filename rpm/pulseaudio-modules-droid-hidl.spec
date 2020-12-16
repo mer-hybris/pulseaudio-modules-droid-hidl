@@ -8,7 +8,7 @@ Summary:    PulseAudio Droid HIDL module
 Version:    1.3.0
 Release:    1
 Group:      Multimedia/PulseAudio
-License:    LGPLv2.1+
+License:    LGPLv2+
 URL:        https://github.com/mer-hybris/pulseaudio-modules-droid-hidl
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   pulseaudio >= %{pulseversion}
@@ -39,4 +39,5 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root,-)
+%license COPYING
 %{_libdir}/pulse-%{pulsemajorminor}/modules/module-droid-hidl.so
