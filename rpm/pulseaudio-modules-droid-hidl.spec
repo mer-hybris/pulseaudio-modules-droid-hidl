@@ -13,11 +13,11 @@ URL:        https://github.com/mer-hybris/pulseaudio-modules-droid-hidl
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   pulseaudio >= %{pulseversion}
 Requires:   audiosystem-passthrough >= 1.0.0
+Requires:   pulseaudio-modules-droid
 BuildRequires:  automake
 BuildRequires:  libtool
 BuildRequires:  libtool-ltdl-devel
 BuildRequires:  pkgconfig(pulsecore) >= %{pulsemajorminor}
-BuildRequires:  pkgconfig(libdroid-util) >= %{pulsemajorminor}.41
 BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(android-headers)
 BuildRequires:  pkgconfig(audiosystem-passthrough)
