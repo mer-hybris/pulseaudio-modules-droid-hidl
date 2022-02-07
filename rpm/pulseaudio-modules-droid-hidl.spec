@@ -16,11 +16,11 @@ Requires:   audiosystem-passthrough >= 1.0.0
 BuildRequires:  automake
 BuildRequires:  libtool
 BuildRequires:  libtool-ltdl-devel
+BuildRequires:  audiosystem-passthrough
 BuildRequires:  pkgconfig(pulsecore) >= %{pulsemajorminor}
 BuildRequires:  pkgconfig(libdroid-util) >= %{pulsemajorminor}.41
 BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(android-headers)
-BuildRequires:  pkgconfig(audiosystem-passthrough)
 
 %description
 PulseAudio Droid HIDL module.
