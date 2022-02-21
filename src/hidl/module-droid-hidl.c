@@ -26,6 +26,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <dlfcn.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -40,6 +41,7 @@
 
 #include <pulsecore/core.h>
 #include <pulsecore/core-error.h>
+#include <pulsecore/core-util.h>
 #include <pulsecore/i18n.h>
 #include <pulsecore/module.h>
 #include <pulsecore/modargs.h>
@@ -48,9 +50,9 @@
 #include <pulsecore/protocol-dbus.h>
 #include <pulsecore/dbus-util.h>
 #include <pulsecore/start-child.h>
+#include <pulsecore/shared.h>
 
-#include <droid/droid-util.h>
-
+#include <android-version.h>
 #include <audiosystem-passthrough/common.h>
 #include "module-droid-hidl-symdef.h"
 
@@ -58,7 +60,7 @@ PA_MODULE_AUTHOR("Juho Hämäläinen");
 PA_MODULE_DESCRIPTION("Droid AudioSystem passthrough");
 PA_MODULE_VERSION(PACKAGE_VERSION);
 PA_MODULE_USAGE(
-        "module_id=<which droid hw module to load, default primary> "
+        "module_id=<unused> "
         "helper=<spawn helper binary, default true>"
 );
 
@@ -67,8 +69,6 @@ static const char* const valid_modargs[] = {
     "helper",
     NULL,
 };
-
-#define DEFAULT_MODULE_ID   "primary"
 
 #define HELPER_BINARY       PASSTHROUGH_HELPER_DIR "/" PASSTHROUGH_HELPER_EXE
 #define BUFFER_MAX          (512)
@@ -83,12 +83,19 @@ static const char* const valid_modargs[] = {
 
 #define QTI_INTERFACE_NAME  "IQcRilAudio"
 
+#define DROID_HW_HANDLE         "droid.handle.v1"
+#define DROID_SET_PARAMETERS    "droid.set_parameters.v1"
+#define DROID_GET_PARAMETERS    "droid.get_parameters.v1"
+
 struct userdata {
     pa_core *core;
     pa_module *module;
 
     pa_dbus_protocol* dbus_protocol;
-    pa_droid_hw_module *hw_module;
+
+    void   *hw_handle;
+    int   (*set_parameters)(void *handle, const char *key_value_pairs);
+    char* (*get_parameters)(void *handle, const char *keys);
 
     /* Helper */
     pid_t pid;
@@ -182,11 +189,7 @@ static void get_parameters(DBusConnection *conn, DBusMessage *msg, void *userdat
                               &keys,
                               DBUS_TYPE_INVALID)) {
 
-        pa_droid_hw_module_lock(u->hw_module);
-        key_value_pairs = u->hw_module->device->get_parameters(u->hw_module->device, keys);
-        pa_droid_hw_module_unlock(u->hw_module);
-
-        pa_log_debug("get_parameters(\"%s\"): \"%s\"", keys, key_value_pairs ? key_value_pairs : "<null>");
+        key_value_pairs = u->get_parameters(u->hw_handle, keys);
 
         reply = dbus_message_new_method_return(msg);
         dbus_message_append_args(reply,
@@ -218,18 +221,12 @@ static void set_parameters(DBusConnection *conn, DBusMessage *msg, void *userdat
                               &key_value_pairs,
                               DBUS_TYPE_INVALID)) {
 
-        pa_log_debug("set_parameters(\"%s\")", key_value_pairs);
+        ret = u->set_parameters(u->hw_handle, key_value_pairs);
 
-        pa_droid_hw_module_lock(u->hw_module);
-        ret = u->hw_module->device->set_parameters(u->hw_module->device, key_value_pairs);
-        pa_droid_hw_module_unlock(u->hw_module);
-
-        if (ret != 0) {
-            pa_log_warn("set_parameters(\"%s\") failed: %d", key_value_pairs, ret);
+        if (ret != 0)
             pa_dbus_send_error(conn, msg, DBUS_ERROR_FAILED, "Failed to set parameters.");
-        } else {
+        else
             pa_dbus_send_empty_reply(conn, msg);
-        }
         return;
     }
 
@@ -323,7 +320,6 @@ static void helper_unsetenv(void) {
 
 int pa__init(pa_module *m) {
     pa_modargs *ma = NULL;
-    const char *module_id;
     bool helper = true;
 
     pa_assert(m);
@@ -342,14 +338,15 @@ int pa__init(pa_module *m) {
     u->fd = -1;
     u->io_event = NULL;
 
-    module_id = pa_modargs_get_value(ma, "module_id", DEFAULT_MODULE_ID);
     if (pa_modargs_get_value_boolean(ma, "helper", &helper) < 0) {
         pa_log("helper is boolean argument");
         goto fail;
     }
 
-    if (!(u->hw_module = pa_droid_hw_module_get(u->core, NULL, module_id))) {
-        pa_log("Couldn't get hw module %s, is module-droid-card loaded?", module_id);
+    if (!(u->hw_handle = pa_shared_get(u->core, DROID_HW_HANDLE)) ||
+        !(u->set_parameters = pa_shared_get(u->core, DROID_SET_PARAMETERS)) ||
+        !(u->get_parameters = pa_shared_get(u->core, DROID_GET_PARAMETERS))) {
+        pa_log("Couldn't get hw module functions, is module-droid-card loaded?");
         goto fail;
     }
 
@@ -422,9 +419,6 @@ void pa__done(pa_module *m) {
 
     if ((u = m->userdata)) {
         dbus_done(u);
-
-        if (u->hw_module)
-            pa_droid_hw_module_unref(u->hw_module);
 
         if (u->pid != (pid_t) -1) {
             kill(u->pid, SIGTERM);
