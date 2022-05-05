@@ -1,7 +1,7 @@
 module_droid_hidl = shared_module('module-droid-hidl',
   'module-droid-hidl.c',
   include_directories : [configinc],
-  c_args : [pa_c_args],
+  c_args : [pa_c_args, '-DPA_MODULE_NAME=module_droid_hidl'],
   install : true,
   install_dir : modlibexecdir,
   dependencies : [
