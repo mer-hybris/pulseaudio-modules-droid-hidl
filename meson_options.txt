@@ -1,0 +1,9 @@
+option('atomic-arm-linux-helpers',
+       type : 'boolean', value : true,
+       description : 'Use inline asm or libatomic_ops instead')
+option('atomic-arm-memory-barrier',
+       type : 'boolean', value : false,
+       description : 'Enable memory barriers (only really needed in SMP arm systems)')
+option('modlibexecdir',
+       type : 'string',
+       description : 'Specify location where modules will be installed')

@@ -54,7 +54,6 @@
 
 #include <android-version.h>
 #include <audiosystem-passthrough/common.h>
-#include "module-droid-hidl-symdef.h"
 
 PA_MODULE_AUTHOR("Juho Hämäläinen");
 PA_MODULE_DESCRIPTION("Droid AudioSystem passthrough");

@@ -7,16 +7,14 @@ Name:       pulseaudio-modules-droid-hidl
 Summary:    PulseAudio Droid HIDL module
 Version:    1.4.0
 Release:    1
-Group:      Multimedia/PulseAudio
 License:    LGPLv2+
 URL:        https://github.com/mer-hybris/pulseaudio-modules-droid-hidl
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   pulseaudio >= %{pulseversion}
 Requires:   audiosystem-passthrough >= 1.0.0
 Requires:   pulseaudio-modules-droid
-BuildRequires:  automake
-BuildRequires:  libtool
 BuildRequires:  libtool-ltdl-devel
+BuildRequires:  meson
 BuildRequires:  pkgconfig(pulsecore) >= %{pulsemajorminor}
 BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(android-headers)
@@ -26,16 +24,15 @@ BuildRequires:  pkgconfig(audiosystem-passthrough)
 PulseAudio Droid HIDL module.
 
 %prep
-%setup -q -n %{name}-%{version}
+%autosetup -n %{name}-%{version}
 
 %build
 echo "%{version}" > .tarball-version
-%reconfigure --disable-static --with-module-dir="%{_libdir}/pulse-%{pulsemajorminor}/modules"
-make %{?jobs:-j%jobs}
+%meson
+%meson_build
 
 %install
-rm -rf %{buildroot}
-%make_install
+%meson_install
 
 %files
 %defattr(-,root,root,-)
