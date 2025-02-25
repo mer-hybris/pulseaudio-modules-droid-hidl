@@ -5,7 +5,7 @@
 Name:       pulseaudio-modules-droid-hidl
 
 Summary:    PulseAudio Droid HIDL module
-Version:    1.5.0
+Version:    1.5.1
 Release:    1
 License:    LGPLv2+
 URL:        https://github.com/mer-hybris/pulseaudio-modules-droid-hidl
