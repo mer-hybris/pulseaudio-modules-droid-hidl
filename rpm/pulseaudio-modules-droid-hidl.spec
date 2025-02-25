@@ -35,6 +35,5 @@ echo "%{version}" > .tarball-version
 %meson_install
 
 %files
-%defattr(-,root,root,-)
 %license COPYING
-%{_libdir}/pulse-%{pulsemajorminor}/modules/module-droid-hidl.so
+%{_libdir}/pulse-*/modules/module-droid-hidl.so
