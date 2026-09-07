@@ -166,6 +166,9 @@ static void dbus_init(struct userdata *u) {
 static void dbus_done(struct userdata *u) {
     pa_assert(u);
 
+    if (!u->dbus_protocol)
+        return;
+
     pa_dbus_protocol_unregister_extension(u->dbus_protocol, AUDIOSYSTEM_PASSTHROUGH_IFACE);
     pa_dbus_protocol_remove_interface(u->dbus_protocol, AUDIOSYSTEM_PASSTHROUGH_PATH, passthrough_info.name);
     pa_dbus_protocol_unref(u->dbus_protocol);
