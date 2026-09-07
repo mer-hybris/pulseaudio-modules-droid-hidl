@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2019 Jolla Ltd.
+ * Copyright (C) 2019-2026 Jolla Mobile Ltd.
  *
- * Contact: Juho Hämäläinen <juho.hamalainen@jolla.com>
+ * Contact: Enni Hämäläinen <enni.hamalainen@jolla.com>
  *
  * These PulseAudio Modules are free software; you can redistribute
  * it and/or modify it under the terms of the GNU Lesser General Public
@@ -55,7 +55,7 @@
 #include <android-version.h>
 #include <audiosystem-passthrough/common.h>
 
-PA_MODULE_AUTHOR("Juho Hämäläinen");
+PA_MODULE_AUTHOR("Enni Hämäläinen");
 PA_MODULE_DESCRIPTION("Droid AudioSystem passthrough");
 PA_MODULE_VERSION(PACKAGE_VERSION);
 PA_MODULE_USAGE(
@@ -165,6 +165,9 @@ static void dbus_init(struct userdata *u) {
 
 static void dbus_done(struct userdata *u) {
     pa_assert(u);
+
+    if (!u->dbus_protocol)
+        return;
 
     pa_dbus_protocol_unregister_extension(u->dbus_protocol, AUDIOSYSTEM_PASSTHROUGH_IFACE);
     pa_dbus_protocol_remove_interface(u->dbus_protocol, AUDIOSYSTEM_PASSTHROUGH_PATH, passthrough_info.name);
